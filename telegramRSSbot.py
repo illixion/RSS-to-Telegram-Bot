@@ -1,6 +1,8 @@
 import feedparser
 import logging
 import sqlite3
+import urllib.request
+from bs4 import BeautifulSoup
 from telegram.ext import Updater, CommandHandler
 
 Token = ""
@@ -108,17 +110,46 @@ def cmd_help(bot, update):
 
 
 def rss_monitor(bot, job):
-    for name, url_list in rss_dict.items():
-        rss_d = feedparser.parse(url_list[0])
-        if (url_list[1] != rss_d.entries[0]['link']):
+    for name, url_list in rss_dict.items():  # for every RSS feed
+        rss_d = feedparser.parse(url_list[0])  # feedparser element
+        entry_url = rss_d.enentry_urltries[0]['link']
+        if (url_list[1] != entry_url):  # if newest RSS entry is not the same as from last check
+            # Save latest element to DB
             conn = sqlite3.connect('rss.db')
-            q = [(name), (url_list[0]), (str(rss_d.entries[0]['link']))]
+            q = [(name), (url_list[0]), (str(entry_url))]
             c = conn.cursor()
             c.execute('''INSERT INTO rss('name','link','last') VALUES(?,?,?)''', q)
             conn.commit()
             conn.close()
-            rss_load()
-            bot.send_message(chat_id=chatid, text=rss_d.entries[0]['link'])
+            rss_load()  # not sure what this does, perhaps updates the variable representation of the SQLite DB?
+
+            # ss.com parser integration
+            if ("ss.com" in entry_url):
+                page = urllib.request.urlopen(entry_url).read()
+                if (page.status_code == 200):
+                    page_html = BeautifulSoup(page, 'html.parser')
+
+                    # Static elements
+                    # You can implement your filters here
+                    price = page_html.select(".ads_price")[0].string
+                    address = page_html.select(".tdo_11")[0].string + ': ' + page_html.select(".tdo_856")[0].string
+                    sq_meters = page_html.select(".tdo_3")[0].string
+                    listing_image = page_html.find_all("img", attrs={"class": "isfoto"})[0]["src"].replace(".t.", ".800.")
+
+                    text_to_send = f"""
+🌐 {entry_url}
+📍 {address}
+🏠 {sq_meters}
+💵 {price}
+                    """
+                    bot.send_photo(chat_id=chatid, photo=listing_image, caption=text_to_send)
+                else:
+                    # if page didn't load, send just the URL
+                    bot.send_message(chat_id=chatid, text=entry_url)
+                # bot.send_message(chat_id=chatid, text=entry_url)
+            # if not an ss.com URL, skip parsing
+            else:
+                bot.send_message(chat_id=chatid, text=entry_url)
 
 
 def cmd_test(bot, update, args):
