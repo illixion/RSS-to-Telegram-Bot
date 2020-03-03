@@ -112,7 +112,7 @@ def cmd_help(bot, update):
 def rss_monitor(bot, job):
     for name, url_list in rss_dict.items():  # for every RSS feed
         rss_d = feedparser.parse(url_list[0])  # feedparser element
-        entry_url = rss_d.enentry_urltries[0]['link']
+        entry_url = rss_d.entries[0]['link']
         if (url_list[1] != entry_url):  # if newest RSS entry is not the same as from last check
             # Save latest element to DB
             conn = sqlite3.connect('rss.db')
@@ -125,9 +125,9 @@ def rss_monitor(bot, job):
 
             # ss.com parser integration
             if ("ss.com" in entry_url):
-                page = urllib.request.urlopen(entry_url).read()
-                if (page.status_code == 200):
-                    page_html = BeautifulSoup(page, 'html.parser')
+                page = urllib.request.urlopen(entry_url)
+                if (page.getcode() == 200):
+                    page_html = BeautifulSoup(page.read(), 'html.parser')
 
                     # Static elements
                     # You can implement your filters here
