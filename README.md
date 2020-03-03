@@ -3,9 +3,13 @@
 # RSS to Telegram bot
 A self-hosted telegram python bot that dumps posts from RSS feeds to a telegram chat. This script was created because all the third party services were unreliable. 
 
+This fork adds support for parsing ss.com advert pages
+
 ![Image of help menu](https://bokker.github.io/telegram.png)
 
 ### Docker
+**Docker image is unchanged from the original!**
+
 For the docker image go to: https://hub.docker.com/r/bokker/rss.to.telegram/
 
 ### Installation
