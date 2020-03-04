@@ -124,24 +124,23 @@ def rss_monitor(bot, job):
             rss_load()  # not sure what this does, perhaps updates the variable representation of the SQLite DB?
 
             # ss.com parser integration
-            if ("ss.com" in entry_url):
+            if "ss.com" in entry_url:
                 page = urllib.request.urlopen(entry_url)
-                if (page.getcode() == 200):
+                if page.getcode() == 200:
                     page_html = BeautifulSoup(page.read(), 'html.parser')
 
                     # Static elements
                     # You can implement your filters here
                     price = page_html.select(".ads_price")[0].string
-                    address = page_html.select(".tdo_11")[0].string + ': ' + page_html.select(".tdo_856")[0].string
-                    sq_meters = page_html.select(".tdo_3")[0].string
+                    address = page_html.find("td", {"id": "tdo_11"}).b.string + ': ' + page_html.find("td", {"id": "tdo_856"}).b.string
+                    sq_meters = page_html.find("td", {"id": "tdo_3"}).string
                     listing_image = page_html.find_all("img", attrs={"class": "isfoto"})[0]["src"].replace(".t.", ".800.")
 
-                    text_to_send = f"""
-🌐 {entry_url}
+                    text_to_send = f"""🌐 {entry_url}
 📍 {address}
 🏠 {sq_meters}
-💵 {price}
-                    """
+💵 {price}"""
+
                     bot.send_photo(chat_id=chatid, photo=listing_image, caption=text_to_send)
                 else:
                     # if page didn't load, send just the URL
