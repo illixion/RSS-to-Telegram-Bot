@@ -4,6 +4,7 @@ import sqlite3
 import urllib.request
 from bs4 import BeautifulSoup
 from telegram.ext import Updater, CommandHandler
+from telegram import InputMediaPhoto
 
 Token = ""
 chatid = ""
@@ -134,14 +135,17 @@ def rss_monitor(bot, job):
                     price = page_html.select(".ads_price")[0].string
                     address = page_html.find("td", {"id": "tdo_11"}).b.string + ': ' + page_html.find("td", {"id": "tdo_856"}).b.string
                     sq_meters = page_html.find("td", {"id": "tdo_3"}).string
-                    listing_image = page_html.find_all("img", attrs={"class": "isfoto"})[0]["src"].replace(".t.", ".800.")
+                    listing_images = []
+                    for image in page_html.find_all("img", attrs={"class": "isfoto"}):
+                        listing_images.append(InputMediaPhoto(media=image["src"].replace(".t.", ".800.")))
 
                     text_to_send = f"""🌐 {entry_url}
 📍 {address}
 🏠 {sq_meters}
 💵 {price}"""
+                    listing_images[0].caption = text_to_send
 
-                    bot.send_photo(chat_id=chatid, photo=listing_image, caption=text_to_send)
+                    bot.send_media_group(chat_id=chatid, media=listing_images[:10])
                 else:
                     # if page didn't load, send just the URL
                     bot.send_message(chat_id=chatid, text=entry_url)
