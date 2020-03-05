@@ -2,6 +2,7 @@ import feedparser
 import logging
 import sqlite3
 import urllib.request
+import re
 from bs4 import BeautifulSoup
 from telegram.ext import Updater, CommandHandler
 from telegram import InputMediaPhoto
@@ -132,7 +133,14 @@ def rss_monitor(bot, job):
 
                     # Static elements
                     # You can implement your filters here
+
+                    # Price filter
+                    min_price = None
+                    max_price = None
                     price = page_html.select(".ads_price")[0].string
+                    if min_price is None or max_price is None or int(re.findall(r"[^ €]*", price)[0]) < min_price or int(re.findall(r"[^ €]*", price)[0]) > max_price:
+                        continue
+
                     address = page_html.find("td", {"id": "tdo_11"}).b.string + ': ' + page_html.find("td", {"id": "tdo_856"}).b.string
                     sq_meters = page_html.find("td", {"id": "tdo_3"}).string
                     listing_images = []
