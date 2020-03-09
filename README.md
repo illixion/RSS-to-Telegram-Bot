@@ -6,6 +6,7 @@ A self-hosted telegram python bot that dumps posts from RSS feeds to a telegram 
 This fork adds support for parsing ss.com advert pages
 
 ## Quick setup for ss.com apartment feed:
+0. Open telegramRSSbot.py in a text editor and add your bot credentials from BotFather on telegram, chat ID (message @get_id_bot to get your ID) and min/max price for filtering if needed
 1. Go to the apartment listings and select city, region and type "Izīrē"
 2. Scroll to the bottom and find the RSS link
 3. Copy the url
