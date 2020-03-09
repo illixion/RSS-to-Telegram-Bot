@@ -10,7 +10,7 @@ This fork adds support for parsing ss.com advert pages
 2. Scroll to the bottom and find the RSS link
 3. Copy the url
 4. Start the bot using `python3 telegramRSSbot.py`
-5. Send /add **<feed name>** **<RSS url that you've just copied>**
+5. Send /add **\<feed name\>** **\<RSS url that you've just copied\>**
 
 ![Image of help menu](https://bokker.github.io/telegram.png)
 
