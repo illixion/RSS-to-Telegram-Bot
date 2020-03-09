@@ -5,6 +5,13 @@ A self-hosted telegram python bot that dumps posts from RSS feeds to a telegram 
 
 This fork adds support for parsing ss.com advert pages
 
+## Quick setup for ss.com apartment feed:
+1. Go to the apartment listings and select city, region and type "Izīrē"
+2. Scroll to the bottom and find the RSS link
+3. Copy the url
+4. Start the bot using `python3 telegramRSSbot.py`
+5. Send /add **<feed name>** **<RSS url that you've just copied>**
+
 ![Image of help menu](https://bokker.github.io/telegram.png)
 
 ### Docker
