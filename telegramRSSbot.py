@@ -11,6 +11,7 @@ from telegram import InputMediaPhoto
 Token = ""
 chatid = ""
 delay = 60
+allowed_users = []  # ids of allowed users
 
 # Price filters in integer Euros
 min_price = None
@@ -56,7 +57,15 @@ def rss_load():
         rss_dict[row[0]] = (row[1], row[2])
 
 
+def check_auth(update):
+    return update.message.from_user.id in allowed_users
+
+
 def cmd_rss_list(bot, update):
+    if not check_auth(update):
+        update.message.reply_text("RSS access denied.")
+        return
+
     if bool(rss_dict) is False:
         update.message.reply_text("The database is empty")
     else:
@@ -72,6 +81,9 @@ def cmd_rss_list(bot, update):
 
 
 def cmd_rss_add(bot, update, args):
+    if not check_auth(update):
+        update.message.reply_text("RSS access denied.")
+        return
     # try if there are 2 arguments passed
     try:
         args[1]
@@ -95,6 +107,10 @@ def cmd_rss_add(bot, update, args):
 
 
 def cmd_rss_remove(bot, update, args):
+    if not check_auth(update):
+        update.message.reply_text("RSS access denied.")
+        return
+
     conn = sqlite3.connect("rss.db")
     c = conn.cursor()
     q = (args[0],)
@@ -109,6 +125,10 @@ def cmd_rss_remove(bot, update, args):
 
 
 def cmd_help(bot, update):
+    if not check_auth(update):
+        update.message.reply_text("RSS access denied.")
+        return
+
     update.message.reply_text(
         "RSS to Telegram bot"
         + "\n\nAfter successfully adding a RSS link, the bot starts fetching the feed every "
@@ -126,14 +146,14 @@ def cmd_help(bot, update):
 
 def parse_ss(url):
     page = urllib.request.urlopen(url)
-                if page.getcode() == 200:
+    if page.getcode() == 200:
         page_html = BeautifulSoup(page.read(), "html.parser")
 
-                    # Static elements
-                    # You can implement your filters here
+        # Static elements
+        # You can implement your filters here
 
-                    # Price filter
-                    price = page_html.select(".ads_price")[0].string
+        # Price filter
+        price = page_html.select(".ads_price")[0].string
         if (
             min_price is None
             or max_price is None
@@ -146,9 +166,9 @@ def parse_ss(url):
         address_region = page_html.find("td", {"id": "tdo_856"}).b.string
         address_city = page_html.find("td", {"id": "tdo_20"}).b.string
 
-                    sq_meters = page_html.find("td", {"id": "tdo_3"}).string
-                    listing_images = []
-                    for image in page_html.find_all("img", attrs={"class": "isfoto"}):
+        sq_meters = page_html.find("td", {"id": "tdo_3"}).string
+        listing_images = []
+        for image in page_html.find_all("img", attrs={"class": "isfoto"}):
             listing_images.append(
                 InputMediaPhoto(
                     media=image["src"].replace(".t.", ".800."), parse_mode="Markdown"
@@ -160,15 +180,15 @@ def parse_ss(url):
 🏠 {sq_meters}
 💵 {price}"""
 
-                    listing_images[0].caption = text_to_send
+        listing_images[0].caption = text_to_send
 
         return {
             "filter_ok": True,
             "text": text_to_send,
             "media": [] + listing_images[:10],
         }
-                else:
-                    # if page didn't load, send just the URL
+    else:
+        # if page didn't load, send just the URL
         return {
             "filter_ok": True,
             "text": text_to_send,
@@ -208,6 +228,10 @@ def rss_monitor(bot, job):
 
 
 def cmd_test(bot, update, args):
+    if not check_auth(update):
+        update.message.reply_text("RSS access denied.")
+        return
+
     url = "https://www.reddit.com/r/funny/.rss"
     rss_d = feedparser.parse(url)
     rss_d.entries[0]["link"]
