@@ -197,7 +197,7 @@ def parse_ss(url, min_price, max_price):
             }
 
         text_to_send = f"""🌐 {url}
-📍 [{address_city}, {address_region}, {address_street}]({"http://maps.google.com/?ll=" + urllib.parse.quote(", ".join(address_gps))}
+📍 [{address_city}, {address_region}, {address_street}]({"http://maps.google.com/?ll=" + urllib.parse.quote(", ".join(address_gps))})
 🏠 {sq_meters}
 🧗‍♀️ {floors}
 🚪 {rooms}
