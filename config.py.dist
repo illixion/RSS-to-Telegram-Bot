@@ -1,0 +1,8 @@
+Token = ""
+chatid = ""
+delay = 60
+allowed_users = []  # ids of allowed users
+
+# Price filters in integer Euros
+min_price = None
+max_price = None

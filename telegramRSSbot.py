@@ -1,5 +1,7 @@
+import config
 import feedparser
 import logging
+import json
 import sqlite3
 import urllib.request
 import urllib.parse
@@ -8,20 +10,12 @@ from bs4 import BeautifulSoup
 from telegram.ext import Updater, CommandHandler
 from telegram import InputMediaPhoto
 
-Token = ""
-chatid = ""
-delay = 60
-allowed_users = []  # ids of allowed users
-
-# Price filters in integer Euros
-min_price = None
-max_price = None
-
 rss_dict = {}
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
+
 
 # SQLITE
 def sqlite_connect():
@@ -58,7 +52,7 @@ def rss_load():
 
 
 def check_auth(update):
-    return update.message.from_user.id in allowed_users
+    return update.message.from_user.id in config.allowed_users
 
 
 def cmd_rss_list(bot, update):
@@ -132,7 +126,7 @@ def cmd_help(bot, update):
     update.message.reply_text(
         "RSS to Telegram bot"
         + "\n\nAfter successfully adding a RSS link, the bot starts fetching the feed every "
-        + str(delay)
+        + str(config.delay)
         + " seconds. (This can be set) ⏰⏰⏰"
         + "\n\nTitles are used to easily manage RSS feeds and need to contain only one word 📝📝📝"
         + "\n\ncommands:"
@@ -144,7 +138,16 @@ def cmd_help(bot, update):
     )
 
 
-def parse_ss(url):
+def translate(text, sourceLang="lv", targetLang="en"):
+    g_url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={sourceLang}&tl={targetLang}&dt=t&q={urllib.parse.quote(text)}"
+
+    page = urllib.request.urlopen(g_url)
+    if page.getcode() == 200:
+        result = json.loads(page.read())
+        return result[0][0][0]
+
+
+def parse_ss(url, min_price, max_price):
     page = urllib.request.urlopen(url)
     if page.getcode() == 200:
         page_html = BeautifulSoup(page.read(), "html.parser")
@@ -152,32 +155,54 @@ def parse_ss(url):
         # Static elements
         # You can implement your filters here
 
-        # Price filter
-        price = page_html.select(".ads_price")[0].string
-        if (
-            min_price is None
-            or max_price is None
-            or int(re.findall(r"[^ €]*", price)[0]) < min_price
-            or int(re.findall(r"[^ €]*", price)[0]) > max_price
-        ):
-            return {"filter_ok": False}
+        try:
+            # Price filter
+            price = page_html.select(".ads_price")[0].string
+            if (config.min_price is not None and config.max_price is not None) and (
+                int(re.findall(r"[^ €]*", price)[0]) < config.min_price
+                or int(re.findall(r"[^ €]*", price)[0]) > config.max_price
+            ):
+                return {"filter_ok": False}
 
-        address_street = page_html.find("td", {"id": "tdo_11"}).b.string
-        address_region = page_html.find("td", {"id": "tdo_856"}).b.string
-        address_city = page_html.find("td", {"id": "tdo_20"}).b.string
+            address_street = page_html.find("td", {"id": "tdo_11"}).b.string
+            address_region = page_html.find("td", {"id": "tdo_856"}).b.string
+            address_city = page_html.find("td", {"id": "tdo_20"}).b.string
+            address_gps = re.match(r".*&c=(\d*\.\d*), (\d*\.\d*).*", page_html.find("a", {"id": "mnu_map"})['onclick']).groups()
 
-        sq_meters = page_html.find("td", {"id": "tdo_3"}).string
-        listing_images = []
-        for image in page_html.find_all("img", attrs={"class": "isfoto"}):
-            listing_images.append(
-                InputMediaPhoto(
-                    media=image["src"].replace(".t.", ".800."), parse_mode="Markdown"
+            sq_meters = page_html.find("td", {"id": "tdo_3"}).string
+            rooms = page_html.find("td", {"id": "tdo_1"}).string
+            floors = page_html.find("td", {"id": "tdo_4"}).string
+            series = page_html.find("td", {"id": "tdo_6"}).string
+            building_type = page_html.find("td", {"id": "tdo_2"}).string
+
+            # description = " ".join(
+            #     page_html.find("div", {"id": "msg_div_msg"}).findAll(
+            #         text=True, recursive=True
+            #     )
+            # ).strip()
+
+            listing_images = []
+            for image in page_html.find_all("img", attrs={"class": "isfoto"}):
+                listing_images.append(
+                    InputMediaPhoto(
+                        media=image["src"].replace(".t.", ".800."), parse_mode="Markdown"
+                    )
                 )
-            )
+        except Exception as e:
+            print("Error while parsing: ", e)
+            return {
+                "filter_ok": True,
+                "text": url,
+                "media": [],
+            }
 
         text_to_send = f"""🌐 {url}
-📍 [{address_street}]({"http://maps.google.com/?q=" + urllib.parse.quote(f"{address_city}, {address_street}")}): {address_region}
+📍 [{address_city}, {address_region}, {address_street}]({"http://maps.google.com/?ll=" + urllib.parse.quote(", ".join(address_gps))}
 🏠 {sq_meters}
+🧗‍♀️ {floors}
+🚪 {rooms}
+🏚 {series}
+🧱 {building_type}
 💵 {price}"""
 
         listing_images[0].caption = text_to_send
@@ -214,17 +239,21 @@ def rss_monitor(bot, job):
             # ss.com parser integration
             print("Got new entry: ", entry_url)
             if "ss.com" in entry_url:
-                result = parse_ss(entry_url)
+                result = parse_ss(entry_url, config.min_price, config.max_price)
                 if result["filter_ok"] is False:
                     continue
                 elif len(result["media"]) != 0:
-                    bot.send_media_group(chat_id=chatid, media=result["media"])
+                    bot.send_media_group(
+                        chat_id=config.chatid, media=result["media"]
+                    )
                 else:
                     bot.send_message(
-                        chat_id=chatid, text=result["text"], parse_mode="MarkdownV2"
+                        chat_id=config.chatid,
+                        text=result["text"],
+                        parse_mode="MarkdownV2",
                     )
             else:
-                bot.send_message(chat_id=chatid, text=entry_url)
+                bot.send_message(chat_id=config.chatid, text=entry_url)
 
 
 def cmd_test(bot, update, args):
@@ -235,7 +264,7 @@ def cmd_test(bot, update, args):
     url = "https://www.reddit.com/r/funny/.rss"
     rss_d = feedparser.parse(url)
     rss_d.entries[0]["link"]
-    bot.send_message(chat_id=chatid, text=(rss_d.entries[0]["link"]))
+    bot.send_message(chat_id=config.chatid, text=(rss_d.entries[0]["link"]))
 
 
 def init_sqlite():
@@ -245,7 +274,7 @@ def init_sqlite():
 
 
 def main():
-    updater = Updater(token=Token)
+    updater = Updater(token=config.Token)
     job_queue = updater.job_queue
     dp = updater.dispatcher
 
@@ -262,7 +291,7 @@ def main():
         pass
     rss_load()
 
-    job_queue.run_repeating(rss_monitor, delay)
+    job_queue.run_repeating(rss_monitor, config.delay)
 
     updater.start_polling()
     updater.idle()
