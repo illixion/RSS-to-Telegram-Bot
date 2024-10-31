@@ -1,9 +1,7 @@
 
 
 # RSS to Telegram bot
-A self-hosted telegram python bot that dumps posts from RSS feeds to a telegram chat. This script was created because all the third party services were unreliable. 
-
-This fork adds support for parsing ss.com advert pages
+A self-hosted telegram python bot that dumps posts from RSS feeds to a telegram chat. This fork adds support for parsing ss.com advert pages.
 
 ## Quick setup for ss.com apartment feed:
 0. Open telegramRSSbot.py in a text editor and add your bot credentials from BotFather on telegram, chat ID (message @get_id_bot to get your ID) and min/max price for filtering if needed
@@ -13,7 +11,22 @@ This fork adds support for parsing ss.com advert pages
 4. Start the bot using `python3 telegramRSSbot.py`
 5. Send /add **\<feed name\>** **\<RSS url that you've just copied\>**
 
-![Image of help menu](https://bokker.github.io/telegram.png)
+1. Install Python 3 from python.org
+2. Click green Code button → Download ZIP
+3. Message @BotFather and get a token for a new bot
+4. Message @get_id_bot to get your chat ID
+5. In extracted zip, rename config.py.dist to config.py
+6. Replace placeholders in config.py including bot token, chat ID and allowed users
+7. Open cmd.exe and run:
+
+```shell
+cd ~/path/to/RSS-to-Telegram-Bot
+pip install feedparser urllib3 bs4 python-telegram-bot
+python3 "telegramRSSbot - gpu.py"
+```
+
+8. Go to ss.com and copy the "RSS" link at the bottom of the page for the category you want
+9. Message the bot /add title <rss URL>
 
 ### Docker
 **Docker image is unchanged from the original!**

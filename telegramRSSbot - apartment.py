@@ -55,7 +55,7 @@ def check_auth(update):
     return update.message.from_user.id in config.allowed_users
 
 
-def cmd_rss_list(bot, update):
+def cmd_rss_list(update, bot):
     if not check_auth(update):
         update.message.reply_text("RSS access denied.")
         return
@@ -74,13 +74,13 @@ def cmd_rss_list(bot, update):
             )
 
 
-def cmd_rss_add(bot, update, args):
+def cmd_rss_add(update, bot):
     if not check_auth(update):
         update.message.reply_text("RSS access denied.")
         return
     # try if there are 2 arguments passed
     try:
-        args[1]
+        bot.args[1]
     except IndexError:
         update.message.reply_text(
             "ERROR: The format needs to be: /add title http://www.URL.com"
@@ -88,37 +88,37 @@ def cmd_rss_add(bot, update, args):
         raise
     # try if the url is a valid RSS feed
     try:
-        rss_d = feedparser.parse(args[1])
+        rss_d = feedparser.parse(bot.args[1])
         rss_d.entries[0]["title"]
     except IndexError:
         update.message.reply_text(
             "ERROR: The link does not seem to be a RSS feed or is not supported"
         )
         raise
-    sqlite_write(args[0], args[1], str(rss_d.entries[0]["link"]))
+    sqlite_write(bot.args[0], bot.args[1], str(rss_d.entries[0]["link"]))
     rss_load()
-    update.message.reply_text("added \nTITLE: %s\nRSS: %s" % (args[0], args[1]))
+    update.message.reply_text("added \nTITLE: %s\nRSS: %s" % (bot.args[0], bot.args[1]))
 
 
-def cmd_rss_remove(bot, update, args):
+def cmd_rss_remove(update, bot):
     if not check_auth(update):
         update.message.reply_text("RSS access denied.")
         return
 
     conn = sqlite3.connect("rss.db")
     c = conn.cursor()
-    q = (args[0],)
+    q = (bot.args[0],)
     try:
         c.execute("DELETE FROM rss WHERE name = ?", q)
         conn.commit()
         conn.close()
     except sqlite3.Error as e:
-        print("Error %s:" % e.args[0])
+        print("Error %s:" % e.bot.args[0])
     rss_load()
-    update.message.reply_text("Removed: " + args[0])
+    update.message.reply_text("Removed: " + bot.args[0])
 
 
-def cmd_help(bot, update):
+def cmd_help(update, bot):
     if not check_auth(update):
         update.message.reply_text("RSS access denied.")
         return
@@ -158,9 +158,10 @@ def parse_ss(url, min_price, max_price):
         try:
             # Price filter
             price = page_html.select(".ads_price")[0].string
+            price_formatted = int(re.findall(r"[^ €]*", price)[0])
             if (config.min_price is not None and config.max_price is not None) and (
-                int(re.findall(r"[^ €]*", price)[0]) < config.min_price
-                or int(re.findall(r"[^ €]*", price)[0]) > config.max_price
+                price_formatted < config.min_price
+                or price_formatted > config.max_price
             ):
                 return {"filter_ok": False}
 
@@ -175,11 +176,11 @@ def parse_ss(url, min_price, max_price):
             series = page_html.find("td", {"id": "tdo_6"}).string
             building_type = page_html.find("td", {"id": "tdo_2"}).string
 
-            # description = " ".join(
-            #     page_html.find("div", {"id": "msg_div_msg"}).findAll(
-            #         text=True, recursive=True
-            #     )
-            # ).strip()
+            description = " ".join(
+                page_html.find("div", {"id": "msg_div_msg"}).findAll(
+                    text=True, recursive=True
+                )
+            ).strip()
 
             listing_images = []
             for image in page_html.find_all("img", attrs={"class": "isfoto"}):
@@ -203,6 +204,9 @@ def parse_ss(url, min_price, max_price):
 🚪 {rooms}
 🏚 {series}
 🧱 {building_type}
+
+{description}
+
 💵 {price}"""
 
         listing_images[0].caption = text_to_send
@@ -216,12 +220,12 @@ def parse_ss(url, min_price, max_price):
         # if page didn't load, send just the URL
         return {
             "filter_ok": True,
-            "text": text_to_send,
+            "text": url,
             "media": [],
         }
 
 
-def rss_monitor(bot, job):
+def rss_monitor(bot):
     for name, url_list in rss_dict.items():  # for every RSS feed
         rss_d = feedparser.parse(url_list[0])  # feedparser element
         entry_url = rss_d.entries[0]["link"]
@@ -238,25 +242,25 @@ def rss_monitor(bot, job):
 
             # ss.com parser integration
             print("Got new entry: ", entry_url)
-            if "ss.com" in entry_url:
+            if "ss.com" in entry_url or "ss.lv" in entry_url:
                 result = parse_ss(entry_url, config.min_price, config.max_price)
                 if result["filter_ok"] is False:
                     continue
                 elif len(result["media"]) != 0:
-                    bot.send_media_group(
+                    bot.bot.send_media_group(
                         chat_id=config.chatid, media=result["media"]
                     )
                 else:
-                    bot.send_message(
+                    bot.bot.send_message(
                         chat_id=config.chatid,
                         text=result["text"],
                         parse_mode="MarkdownV2",
                     )
             else:
-                bot.send_message(chat_id=config.chatid, text=entry_url)
+                bot.bot.send_message(chat_id=config.chatid, text=entry_url)
 
 
-def cmd_test(bot, update, args):
+def cmd_test(update, bot):
     if not check_auth(update):
         update.message.reply_text("RSS access denied.")
         return
@@ -265,6 +269,12 @@ def cmd_test(bot, update, args):
     rss_d = feedparser.parse(url)
     rss_d.entries[0]["link"]
     bot.send_message(chat_id=config.chatid, text=(rss_d.entries[0]["link"]))
+
+
+def error_callback(update, context):
+    print("Error: ", context.error)
+    with open("error.log", "a") as f:
+        f.write(f"{context.error}\n")
 
 
 def init_sqlite():
@@ -283,6 +293,7 @@ def main():
     dp.add_handler(CommandHandler("test", cmd_test, pass_args=True))
     dp.add_handler(CommandHandler("list", cmd_rss_list))
     dp.add_handler(CommandHandler("remove", cmd_rss_remove, pass_args=True))
+    dp.add_error_handler(error_callback)
 
     # try to create a database if missing
     try:

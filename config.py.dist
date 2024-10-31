@@ -1,8 +1,26 @@
-Token = ""
-chatid = ""
+Token = "AAABBBCCCDD:aaabbbcccdddaaabbbcccddd"
+chatid = "1234567"
 delay = 60
-allowed_users = []  # ids of allowed users
+allowed_users = [1234567]
 
 # Price filters in integer Euros
 min_price = None
 max_price = None
+
+# GPU specific
+gpu_model = [
+    "rtx2070",
+    "rtx3060ti",
+    "rtx3070",
+    "gtx1660super",
+    "gtx1660ti",
+    "rtx2080",
+]
+gpu_model_to_msrp = {
+    "rtx2070": "400",
+    "rtx3060ti": "400",
+    "rtx3070": "500",
+    "gtx1660super": "240",
+    "gtx1660ti": "300",
+    "rtx2080": "630",
+}
